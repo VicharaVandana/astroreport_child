@@ -11,6 +11,100 @@ def list_intersection(lst1, lst2):
     lst3 = [value for value in lst1 if value in lst2]
     return lst3
 
+signs = [ "Aries",       "Taurus",    "Gemini",   "Cancer",
+          "Leo",         "Virgo",     "Libra",    "Scorpio",
+          "Saggitarius", "Capricorn", "Aquarius", "Pisces"
+        ]
+signlords = [ "Mars",    "Venus",     "Mercury",  "Moon",
+              "Sun",     "Mercury",   "Venus",    "Mars",
+              "Jupiter", "Saturn",    "Saturn",   "Jupiter",
+            ]
+
+barrensigns = ["Aries", "Gemini", "Leo", "Virgo"]
+
+
+lord_of_sign = dict(zip(signs, signlords))
+
+signnum = lambda signstr: signs.index(signstr) + 1
+
+def nth(n):
+    if n == 1:
+        return "st"
+    elif n == 2:
+        return "nd"
+    elif n == 3:
+        return "rd"
+    else:
+        return "th"
+
+def get_distancebetweenplanets(division, fromplanet, toplanet):
+    #Computes whats the distance between from planet to toplanet in given divisional chart in seconds(deg and minutes also converted to seconds)
+    fp = division["planets"][fromplanet]
+    tp = division["planets"][toplanet]
+    #compute distance from start of lagna to from and to planets in seconds.
+    sec_fp = (((fp["house-num"]-1)*30*3600) + (fp["pos"]["deg"]*3600) + (fp["pos"]["min"]*60) + (fp["pos"]["sec"]))
+    sec_tp = (((tp["house-num"]-1)*30*3600) + (tp["pos"]["deg"]*3600) + (tp["pos"]["min"]*60) + (tp["pos"]["sec"]))
+
+    if(sec_tp >= sec_fp):   #if toplanet is ahead of fromplanet
+        dist = sec_tp - sec_fp
+    else:   #if toplanet is behind of fromplanet
+        gap = sec_fp - sec_tp
+        dist = (360*3600) - gap
+
+    return dist
+
+def compute_pakshatithi4mdegree(deg):
+    # Normalize degrees to be within the range [0, 360)
+    normalized_deg = deg % 360
+
+    # Determine the paksha (waxing or waning)
+    if normalized_deg < 180:
+        paksha = "shukla"
+    else:
+        paksha = "krishna"
+
+    # Determine the tithi
+    tithi = ((normalized_deg % 180) // 12) + 1
+
+    return paksha, int(tithi)
+
+def relation(planet1, planet2, div,ad):
+    relstr = ""
+    p1_friends = ad[div]["planets"][planet1]["friends"]
+    p1_enemies = ad[div]["planets"][planet1]["enemies"]
+    
+    p2_friends = ad[div]["planets"][planet2]["friends"]
+    p2_enemies = ad[div]["planets"][planet2]["enemies"]
+    
+
+    if(planet1 in p2_friends):
+        relstr = f"""{planet1} is friend of {planet2}."""
+    elif(planet1 in p2_enemies):
+        relstr = f"""{planet1} is enemy of {planet2}."""
+    else:
+        relstr = f"""{planet1} is neutral to {planet2}."""
+
+    if(planet2 in p1_friends):
+        relstr = f"""{relstr} And {planet2} is friend of {planet1}."""
+    elif(planet2 in p1_enemies):
+        relstr = f"""{relstr} And {planet2} is enemy of {planet1}."""
+    else:
+        relstr = f"""{relstr} And {planet2} is neutral to {planet1}."""
+
+    return(relstr)
+    
+def housediff(fromsign, tosign):
+  ''' Computes how many houses is difference between from fromsign to tosign
+      This function is used to compute housenumber for planets too '''
+  if(tosign > fromsign):
+    house = tosign - fromsign + 1
+  elif(tosign < fromsign):
+    house = 12 + tosign - fromsign + 1
+  else: #same signs
+    house = 1 #first house
+  return house   
+    
+
 class SapthamsaReportPDF(FPDF):
     def header(self):
         # Logo
@@ -19,7 +113,7 @@ class SapthamsaReportPDF(FPDF):
         self.set_font('Times', 'B', 18)
         # Title
         self.cell(170, 10, f'Saptamsha Astrology Report for {bd["name"]}',ln=True,border=True, align='C')
-        self.ln()
+        self.ln(1)
         
 
     def footer(self):
@@ -108,7 +202,7 @@ Place of Birth:  {bd["POB"]["name"]}
         self.set_text_color(0,20,20)
         brief = f'''<p>In <i>Vedic astrology</i>, the <b>Lagna Chart (D1)</b> plays a pivotal role 
         in predicting <b>childbirth</b> and progeny. The <b>fifth house [here of sign {ad["D1"]["houses"][4]["sign"]}]</b>, representing <b>children</b>, 
-        is scrutinized along with its planetary influences. 
+        is scrutinized along with its planetsry influences. 
         The <b>lord of the fifth house [{ad["D1"]["houses"][4]["sign-lord"]}]</b> becomes a key factor, indicating the native's potential for having 
         <b>children</b>. The <b>ninth house [here of sign {ad["D1"]["houses"][8]["sign"]}]</b>, associated with <b>fortune</b>, also contributes insights. 
         <i>Jupiter</i> is considered a favorable influence for <b>childbirth</b>, and <b>Dasha periods</b> and <b>transits</b> are examined for timing predictions. 
@@ -143,8 +237,8 @@ Place of Birth:  {bd["POB"]["name"]}
         brief = f'''<p>In Vedic astrology, the <b>Saptamsha Chart (D7)</b> 
         takes center stage in predicting matters of childbirth and progeny. 
         This specialized chart zeros in on the seventh house, intricately tied to themes of fruits of marriage which are progeny, and children. 
-        Analyzing planetary positions within this chart offers insights into the number and well-being of children.  
-        Timing predictions for childbirth are deduced through careful scrutiny of <b>Dasha periods</b> and planetary transits within the Saptamsha Chart. 
+        Analyzing planetsry positions within this chart offers insights into the number and well-being of children.  
+        Timing predictions for childbirth are deduced through careful scrutiny of <b>Dasha periods</b> and planetsry transits within the Saptamsha Chart. 
         As always, acknowledging individual nuances and potentially consulting complementary charts enriches the depth of astrological interpretations.</p>'''
         self.set_xy(5,77+(2*imageWidth_n))
         self.write_html(brief)
@@ -177,10 +271,10 @@ Place of Birth:  {bd["POB"]["name"]}
         self.set_text_color(0,20,20)
         brief = f'''<p>The <b>Navamsha Chart (D9)</b> in Vedic astrology is pivotal for predicting 
         aspects of children and marriage. Focused on the ninth house, representing dharma and fortune, 
-        this chart examines planetary placements and the influence of benefic planets, 
+        this chart examines planetsry placements and the influence of benefic planets, 
         especially <i>Jupiter</i>, for insights into the potential for progeny. 
         Analysis of the ninth house lord and its interactions with other planets, along with timing predictions 
-        derived from <b>Dasha periods</b> and planetary transits, provides a comprehensive understanding of 
+        derived from <b>Dasha periods</b> and planetsry transits, provides a comprehensive understanding of 
         an individual's familial journey. Complementary charts and consideration of individual variations 
         enhance the accuracy of these predictions.</p>'''
         self.set_xy(5,30+imageWidth_n)
@@ -546,7 +640,7 @@ Place of Birth:  {bd["POB"]["name"]}
         bhavabalarank = [(maxrank+1)-x for x in rankorderofbhavabalas]
         # Define HTML code for the table
         html_text = f""" <p> Apart from above given details its is better to also notice shadbalas of relevant planets which are shown below. </p>
-        <table border="3" cellpadding="5">
+        <table border="1">
         <thead>
             <tr>
             <th>Planet</th>
@@ -585,6 +679,372 @@ Place of Birth:  {bd["POB"]["name"]}
         self.line(5, self.get_y(), self.w-5, self.get_y())
         self.ln()
 
+        return
+    
+    def add_analysis_Sphuta(self,ad):
+        #title of the page
+        self.set_font('Arial', 'BU', 16)
+        self.set_text_color(230,30,0)
+        sphuta = ad["special_points"]["sphuta"]
+        sphuta["D3"]["signlord"] = lord_of_sign[sphuta["D3"]["sign"]]
+        sphuta["D7"]["signlord"] = lord_of_sign[sphuta["D7"]["sign"]]
+        sphuta["D9"]["signlord"] = lord_of_sign[sphuta["D9"]["sign"]]
+        self.cell(txt=f'''Analysis of {bd["name"]}'s Sphuta''', w=0, h=10, align='C')
+        self.ln()
+        cnt_sphuta = 0
+        response = f""""""
+        #Section for areas to consider
+        html_text = f"""
+        <p><font color="blue" size="19"><b><U>BEEJA SPHUTA AND KSHETRA SPHUTA</U></b></font></p>
+        <p><b>Beeja Sphuta (BS)</b> and <b>Kshetra Sphuta (KS)</b> are mathematically derived points for a horoscope. 
+        BS is worked out for a male horoscope and KS for a female horoscope. 
+        Beeja means seed and Kshetra means field. This point indicates the capability to produce a child and the worthiness of children.</p>"""
+        
+
+        if sphuta['type'] == "Beeja":
+            if (signnum(sphuta["D1"]["sign"])%2 == 1):
+                clr_D1 = CLR_TRUE
+                cnt_sphuta = cnt_sphuta + 1
+                response = response + f"""In <b>Rashi chart</b>, BS is in odd sign. """
+            else:
+                clr_D1 = CLR_FALSE
+                response = response + f"""In <b>Rashi chart</b>, BS is in even sign. """
+
+            if (signnum(sphuta["D7"]["sign"])%2 == 1):
+                clr_D7 = CLR_TRUE
+                cnt_sphuta = cnt_sphuta + 1
+                response = response + f"""In <b>Saptamsha chart</b>, BS is in odd sign. """
+            else:
+                clr_D7 = CLR_FALSE
+                response = response + f"""In <b>Saptamsha chart</b>, BS is in even sign. """
+
+            if (signnum(sphuta["D9"]["sign"])%2 == 1):
+                clr_D9 = CLR_TRUE
+                cnt_sphuta = cnt_sphuta + 1
+                response = response + f"""In <b>Navamsha chart</b>, BS is in odd sign. """
+            else:
+                clr_D9 = CLR_FALSE
+                response = response + f"""In <b>Navamsha chart</b>, BS is in even sign. """
+
+            html_text = html_text + f"""<p><b>Beeja Sphuta</b> is the sum of the longitude of <b>Jupiter, Venus and Sun</b>. 
+            The longitudes are taken from <I>first point of Aries</I>. The BS should be in an <I>odd sign</I> in <b>Rashi chart, 
+            navamsha</b> and <b>saptamsha</b> charts to promise progeny. We examine the <b>BS</b> and <b>its lord</b> in all three charts.
+            For {bd["name"]}, when we calculate <I>Beeja Sphuta</I> in all 3 charts we get below results:</p>
+            <table border="3" cellpadding="5">
+            <thead>
+                <tr>
+                <th>Chart</th>
+                <th>Sign</th>
+                <th>Signlord</th>
+                <th>degree</th>
+                <th>Nakshatra</th>
+                <th>Nakshatra lord</th>
+                <th>House</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><font color={clr_D1}>
+                <td>D1</td>
+                <td>{sphuta["D1"]["sign"]}</td>
+                <td>{sphuta["D1"]["signlord"]}</td>
+                <td>{round(sphuta["D1"]["pos"]["dec_deg"],2)}</td>
+                <td>{sphuta["D1"]["nakshatra"]}</td>
+                <td>{sphuta["D1"]["nak-ruler"]}</td>
+                <td>{sphuta["D1"]["house-num"]}</td>
+                </font></tr>
+                <tr><font color={clr_D7}>
+                <td>D7</td>
+                <td>{sphuta["D7"]["sign"]}</td>
+                <td>{sphuta["D7"]["signlord"]}</td>
+                <td>{round(sphuta["D7"]["pos"]["dec_deg"],2)}</td>
+                <td>{sphuta["D7"]["nakshatra"]}</td>
+                <td>{sphuta["D7"]["nak-ruler"]}</td>
+                <td>{sphuta["D7"]["house-num"]}</td>
+                </font></tr>
+                <tr><font color={clr_D9}>
+                <td>D9</td>
+                <td>{sphuta["D9"]["sign"]}</td>
+                <td>{sphuta["D9"]["signlord"]}</td>
+                <td>{round(sphuta["D9"]["pos"]["dec_deg"],2)}</td>
+                <td>{sphuta["D9"]["nakshatra"]}</td>
+                <td>{sphuta["D9"]["nak-ruler"]}</td>
+                <td>{sphuta["D9"]["house-num"]}</td>
+                </font></tr>
+            </tbody>
+            </table>
+            <p>As you can see, {response}. So there are <b>{cnt_sphuta} out of 3 points</b> indicating capability of producing a child.</p>
+            """
+        
+        else:
+            if (signnum(sphuta["D1"]["sign"])%2 == 0):
+                clr_D1 = CLR_TRUE
+                cnt_sphuta = cnt_sphuta + 1
+                response = response + f"""In <b>Rashi chart</b>, KS is in even sign. """
+            else:
+                clr_D1 = CLR_FALSE
+                response = response + f"""In <b>Rashi chart</b>, KS is in odd sign. """
+
+            if (signnum(sphuta["D7"]["sign"])%2 == 0):
+                clr_D7 = CLR_TRUE
+                cnt_sphuta = cnt_sphuta + 1
+                response = response + f"""In <b>Saptamsha chart</b>, KS is in even sign. """
+            else:
+                clr_D7 = CLR_FALSE
+                response = response + f"""In <b>Saptamsha chart</b>, KS is in odd sign. """
+
+            if (signnum(sphuta["D9"]["sign"])%2 == 0):
+                clr_D9 = CLR_TRUE
+                cnt_sphuta = cnt_sphuta + 1
+                response = response + f"""In <b>Navamsha chart</b>, KS is in even sign. """
+            else:
+                clr_D9 = CLR_FALSE
+                response = response + f"""In <b>Navamsha chart</b>, KS is in odd sign. """
+
+            html_text = html_text + f"""<p><b>Kshetra Sphuta</b> is the sum of the longitudes of 
+            <b>Jupiter, Mars</b> and <b>Moon</b> in female chart. The KS and its lord should occupy even sign 
+            in Rashi chart, navamsha and saptamsha chart.
+            For {bd["name"]}, when we calculate <I>Kshetra Sphuta</I> in all 3 charts we get below results:</p>
+            <table border="3" cellpadding="5">
+            <thead>
+                <tr>
+                <th>Chart</th>
+                <th>Sign</th>
+                <th>Signlord</th>
+                <th>degree</th>
+                <th>Nakshatra</th>
+                <th>Nakshatra lord</th>
+                <th>House</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><font color={clr_D1}>
+                <td>D1</td>
+                <td>{sphuta["D1"]["sign"]}</td>
+                <td>{sphuta["D1"]["signlord"]}</td>
+                <td>{round(sphuta["D1"]["pos"]["dec_deg"],2)}</td>
+                <td>{sphuta["D1"]["nakshatra"]}</td>
+                <td>{sphuta["D1"]["nak-ruler"]}</td>
+                <td>{sphuta["D1"]["house-num"]}</td>
+                </font></tr>
+                <tr><font color={clr_D7}>
+                <td>D7</td>
+                <td>{sphuta["D7"]["sign"]}</td>
+                <td>{sphuta["D7"]["signlord"]}</td>
+                <td>{round(sphuta["D7"]["pos"]["dec_deg"],2)}</td>
+                <td>{sphuta["D7"]["nakshatra"]}</td>
+                <td>{sphuta["D7"]["nak-ruler"]}</td>
+                <td>{sphuta["D7"]["house-num"]}</td>
+                </font></tr>
+                <tr><font color={clr_D9}>
+                <td>D9</td>
+                <td>{sphuta["D9"]["sign"]}</td>
+                <td>{sphuta["D9"]["signlord"]}</td>
+                <td>{round(sphuta["D9"]["pos"]["dec_deg"],2)}</td>
+                <td>{sphuta["D9"]["nakshatra"]}</td>
+                <td>{sphuta["D9"]["nak-ruler"]}</td>
+                <td>{sphuta["D9"]["house-num"]}</td>
+                </font></tr>
+            </tbody>
+            </table>
+            <p>As you can see, {response}. So there are <b>{cnt_sphuta} out of 3 points</b> indicating capability of producing a child.</p>
+            """
+        self.set_font('Helvetica', '', 13)
+        self.set_text_color(10,10,10)
+        self.write_html(html_text)
+
+
+        #laganlord and fifth lord and karaka of birthchart analysis in  saptamsha chart
+        D1_laganlord = ad["D1"]["houses"][0]["sign-lord"]
+        D1_fifthlord = ad["D1"]["houses"][4]["sign-lord"]
+
+        html_text = f"""<p>The lagan lord, fifth lord of birth chart and Jupiter are seen in the saptamsha for their placement, conjunction and aspect received by them.</p>
+        <p>In <b>{bd["name"]}'s</b> birth chart [leftside], the <b>lagan lord is {D1_laganlord}[lord of {ad["D1"]["houses"][0]["sign"]}]</b>. The <b>fifth lord is {D1_fifthlord}[lord of {ad["D1"]["houses"][4]["sign"]}]</b>.</p>        
+        <p>In <b>Saptamsha chart</b> which is displayed rightside below of native, 
+        D1 lagan lord <b>{D1_laganlord}</b> is placed in <b>house number {ad["D7"]["planets"][D1_laganlord]["house-num"]}</b> in the sign of <b>{ad["D7"]["planets"][D1_laganlord]["sign"]}</b> which is his <b>{ad["D7"]["planets"][D1_laganlord]["house-rel"]} sign</b>. The lagan lord is conjunct with <b>{len(ad["D7"]["planets"][D1_laganlord]["conjuncts"])} planets {ad["D7"]["planets"][D1_laganlord]["conjuncts"]}</b> and aspected by <b>{len(ad["D7"]["planets"][D1_laganlord]["Aspected-by"])} planets {ad["D7"]["planets"][D1_laganlord]["Aspected-by"]}</b>.
+        D1 fifth lord <b>{D1_fifthlord}</b> is placed in <b>house number {ad["D7"]["planets"][D1_fifthlord]["house-num"]}</b> in the sign of <b>{ad["D7"]["planets"][D1_fifthlord]["sign"]}</b> which is his <b>{ad["D7"]["planets"][D1_fifthlord]["house-rel"]} sign</b>. The fifth lord is conjunct with <b>{len(ad["D7"]["planets"][D1_fifthlord]["conjuncts"])} planets {ad["D7"]["planets"][D1_fifthlord]["conjuncts"]}</b> and aspected by <b>{len(ad["D7"]["planets"][D1_fifthlord]["Aspected-by"])} planets {ad["D7"]["planets"][D1_fifthlord]["Aspected-by"]}</b>.
+        And Santana karaka <b>Jupiter</b> is placed in <b>house number {ad["D7"]["planets"]["Jupiter"]["house-num"]}</b> in the sign of <b>{ad["D7"]["planets"]["Jupiter"]["sign"]}</b> which is his <b>{ad["D7"]["planets"]["Jupiter"]["house-rel"]} sign</b>. Jupiter is conjunct with <b>{len(ad["D7"]["planets"]["Jupiter"]["conjuncts"])} planets {ad["D7"]["planets"]["Jupiter"]["conjuncts"]}</b> and aspected by <b>{len(ad["D7"]["planets"]["Jupiter"]["Aspected-by"])} planets {ad["D7"]["planets"]["Jupiter"]["Aspected-by"]}</b>.
+        </p>
+        <table cellpadding="5">
+        <tr>
+            <td><img src="./charts/NorthChart_D1.png" width="50"></td>
+            <td><img src="./charts/NorthChart_D7.png" width="50"></td>
+        </tr>
+        </table>
+        """
+        #self.add_page()
+        self.set_font('Helvetica', '', 13)
+        self.set_text_color(10,10,100)
+        self.write_html(html_text)
+
+        D7_sphutalord = sphuta["D7"]["signlord"]
+        D7_housediff_D1lagnesh2D7Sphutalord = housediff(ad["D7"]["planets"][D1_laganlord]["house-num"],ad["D7"]["planets"][D7_sphutalord]["house-num"])
+        D7_housediff_D1panchamesh2D7Sphutalord = housediff(ad["D7"]["planets"][D1_fifthlord]["house-num"],ad["D7"]["planets"][D7_sphutalord]["house-num"])
+        
+        html_text = f'''<p>The lord of BS or KS in saptamsha chart is seen for luxuries. 
+        It should have good relation with Lagan lord and fifth lord of birth chart in saptamsha 
+        and well placed in D7 to grant a luxurious life.</p>
+        <p>In {bd["name"]},s kundali, the lord of {sphuta["symbol"]} in saptamsha chart is <b>{D7_sphutalord}</b> who is placed in <b>house number {ad["D7"]["planets"][D7_sphutalord]["house-num"]}</b> in the sign of <b>{ad["D7"]["planets"][D7_sphutalord]["sign"]}</b> which is his <b>{ad["D7"]["planets"][D7_sphutalord]["house-rel"]} sign</b>. He is conjunct with <b>{len(ad["D7"]["planets"][D7_sphutalord]["conjuncts"])} planets {ad["D7"]["planets"][D7_sphutalord]["conjuncts"]}</b> and aspected by <b>{len(ad["D7"]["planets"][D7_sphutalord]["Aspected-by"])} planets {ad["D7"]["planets"][D7_sphutalord]["Aspected-by"]}</b>.
+        The lagan lord of birth chart <b>{D1_laganlord}</b>. In D7-Saptamsha chart, {relation(D1_laganlord,D7_sphutalord,"D7", ad)}. 
+        The fifth lord of birth chart <b>{D1_fifthlord}</b>. In D7-Saptamsha chart, {relation(D1_fifthlord,D7_sphutalord,"D7", ad)}. </p>
+        <p>If it is in 6,8,12 from birth Lagan lord it gives physical problems, when it is in 6,8,12 from fifth lord of birth chart then problems due to poorva punya.
+        D7 sphuta lord <b>{D7_sphutalord}</b> is in <b>{D7_housediff_D1lagnesh2D7Sphutalord}{nth(D7_housediff_D1lagnesh2D7Sphutalord)}</b> house from D1 lagnesh <b>{D1_laganlord}</b> 
+        and is <b>{D7_housediff_D1panchamesh2D7Sphutalord}{nth(D7_housediff_D1lagnesh2D7Sphutalord)}</b> house from D1 fifth house lord <b>{D1_fifthlord}</b>.</p>'''
+
+        self.set_font('Helvetica', '', 13)
+        self.set_text_color(10,10,100)
+        self.write_html(html_text)
+        self.ln()
+
+        #Section for Bahu putra yoga
+        cnt_bahuputra = 0
+        #Check if Sun and Jupiter are in the navamsha of Sagittarius and Gemini. 
+        #They can be singly or together in any of these signs
+        D9_sunsign = ad["D9"]["planets"]["Sun"]["sign"]
+        D9_jupitersign = ad["D9"]["planets"]["Jupiter"]["sign"]
+        if(((D9_sunsign == "Saggitarius") and (D9_jupitersign == "Gemini")) or
+           ((D9_sunsign == "Gemini") and (D9_jupitersign == "Saggitarius")) or
+           ((D9_sunsign == "Gemini") and (D9_jupitersign == "Gemini")) or
+           ((D9_sunsign == "Saggitarius") and (D9_jupitersign == "Saggitarius"))):
+            clr1 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response1 = f"""<b><U>Satisfied</U></b>. In <b>Navamsha chart</b> of <b>{bd["name"]}'s</b> kundali, 
+            <b>Sun</b> is in <b>{D9_sunsign} sign</b> and <b>Jupiter</b> is in <b>{D9_jupitersign} sign</b>."""
+        else:
+            clr1 = CLR_FALSE
+            response1 = f"""<b><U>Unsatisfied</U></b>. In <b>Navamsha chart</b> of <b>{bd["name"]}'s</b> kundali, 
+            <b>Sun</b> is in <b>{D9_sunsign} sign</b> and <b>Jupiter</b> is in <b>{D9_jupitersign} sign</b>."""
+
+        #check if Rahu is in the fifth house in navamsha but not in the sign of Saturn.
+        D9_rahudispositor = ad["D9"]["planets"]["Rahu"]["dispositor"]
+        D9_rahuhouse = ad["D9"]["planets"]["Rahu"]["house-num"]
+        if ((D9_rahuhouse == 5) and (D9_rahudispositor != "Saturn")):
+            clr2 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response2 = f"""<b><U>Satisfied</U></b>. In <b>Navamsha chart</b> of <b>{bd["name"]}'s</b> kundali, 
+            <b>Rahu</b> is in <b>{D9_rahuhouse}{nth(D9_rahuhouse)} house</b> and in the sign of <b>{D9_rahudispositor}</b>."""
+        else:
+            clr2 = CLR_FALSE
+            response2 = f"""<b><U>Unsatisfied</U></b>. In <b>Navamsha chart</b> of <b>{bd["name"]}'s</b> kundali, 
+            <b>Rahu</b> is in <b>{D9_rahuhouse}{nth(D9_rahuhouse)} house</b> and in the sign of <b>{D9_rahudispositor}</b>."""
+
+        #check if the seventh lord of D1 or D9 joins lord of 
+        #first, second or fifth of D1 in birth horoscope.
+        D1_seventhlord = ad["D1"]["houses"][6]["sign-lord"]
+        D9_seventhlord = ad["D9"]["houses"][6]["sign-lord"]
+        D1_secondlord = ad["D1"]["houses"][1]["sign-lord"]
+        clr3 = CLR_FALSE
+        response3 = ""
+        #check if seventh lord of D1 joins first lord of D1 in lagna chart
+        if (D1_seventhlord in ad["D1"]["planets"][D1_laganlord]["conjuncts"]):
+            clr3 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response3 = f"""Seventh Lord of D1 chart <b>{D1_seventhlord}</b> is conjunct with lord of first house of D1 chart {D1_laganlord} in birth chart. """
+        #check if seventh lord of D9 joins first lord of D1 in lagna chart
+        if (D9_seventhlord in ad["D1"]["planets"][D1_laganlord]["conjuncts"]):
+            clr3 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response3 = f"""Seventh Lord of D9 chart <b>{D9_seventhlord}</b> is conjunct with lord of first house of D1 chart {D1_laganlord} in birth chart. """
+        #check if seventh lord of D1 joins second lord of D1 in lagna chart
+        if (D1_seventhlord in ad["D1"]["planets"][D1_secondlord]["conjuncts"]):
+            clr3 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response3 = f"""Seventh Lord of D1 chart <b>{D1_seventhlord}</b> is conjunct with lord of second house of D1 chart {D1_secondlord} in birth chart. """
+        #check if seventh lord of D9 joins second lord of D1 in lagna chart
+        if (D9_seventhlord in ad["D1"]["planets"][D1_secondlord]["conjuncts"]):
+            clr3 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response3 = f"""Seventh Lord of D9 chart <b>{D9_seventhlord}</b> is conjunct with lord of second house of D1 chart {D1_secondlord} in birth chart. """
+        #check if seventh lord of D1 joins fifth lord of D1 in lagna chart
+        if (D1_seventhlord in ad["D1"]["planets"][D1_fifthlord]["conjuncts"]):
+            clr3 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response3 = f"""Seventh Lord of D1 chart <b>{D1_seventhlord}</b> is conjunct with lord of fifth house of D1 chart {D1_fifthlord} in birth chart. """
+        #check if seventh lord of D9 joins fifth lord of D1 in lagna chart
+        if (D9_seventhlord in ad["D1"]["planets"][D1_fifthlord]["conjuncts"]):
+            clr3 = CLR_TRUE
+            cnt_bahuputra = cnt_bahuputra + 1
+            response3 = f"""Seventh Lord of D9 chart <b>{D9_seventhlord}</b> is conjunct with lord of fifth house of D1 chart {D1_fifthlord} in birth chart. """
+        
+        if(clr3 == CLR_TRUE):
+            response3 = f"""<b><U>Satisfied</U></b>. In <b>Lagna chart</b> of <b>{bd["name"]}'s</b> kundali, {response3}."""
+        else:
+            response3 = f"""<b><U>Unsatisfied</U></b>. In <b>Lagna chart</b> of <b>{bd["name"]}'s</b> kundali, None of these combination is met."""
+        
+        
+        html_text = f"""
+        <p><font color="blue" size="19"><b><U>BAHU PUTRA YOGA</U></b></font></p>
+        <p>Birth of many children born to a person goes with the name of <b>Bahu Purta Yoga</b>. 
+        Classics gives many combinations for this yoga. These yogas are given in birth horoscope.</p>
+        <ul>
+        <li><font color={clr1} size="16">Sun and Jupiter are in the navamsha of Sagittarius and Gemini. They can be singly or together in any of these signs.</font>: {response1}</li>
+        </ul>
+        <ul>
+        <li><font color={clr2} size="16">Rahu is in the fifth house in navamsha but not in the sign of Saturn.</font>: {response2}</li>
+        </ul>
+        <ul>
+        <li><font color={clr3} size="16">The seventh lord of D1 or D9 joins lord of first, second or fifth of D1 in birth horoscope.</font>: {response3}</li>
+        </ul>
+        <p>So In total, <b>{cnt_bahuputra} out of 3</b> combinations indicating <I>Bahu Putra Yoga</I> are met. Atleast one combination need to be met for possibility of having multiple children as per Vedic astrology.</p>
+        """
+
+        self.set_font('Times', '', 13)
+        self.set_text_color(10,10,10)
+        self.write_html(html_text)
+        self.ln()
+        self.line(5, self.get_y(), self.w-5, self.get_y())
+        self.ln(5)
+        return
+    
+    def add_santanatithi(self,ad):
+
+        #Step 1: Subtract the longitude of Sun from that of Moon.
+        sun_pos = f"""{ad["D1"]["planets"]["Sun"]["sign"]} sign {round(ad["D1"]["planets"]["Sun"]["pos"]["dec_deg"],2)} degrees"""
+        moon_pos = f"""{ad["D1"]["planets"]["Moon"]["sign"]} sign {round(ad["D1"]["planets"]["Moon"]["pos"]["dec_deg"],2)} degrees"""
+        sun2moon = round(get_distancebetweenplanets(ad["D1"], "Sun", "Moon") / 3600,2)
+        
+        #Step 2:  multiply by 5
+        deg = sun2moon * 5
+
+        #Step 3: Expunge multiples of 360 from the product till the remainder is 360 or less than 360.
+        finaldeg = deg % 360
+
+        #Step 4: Find out the paksha and tithi from this remainder.
+        paksha,tithi = compute_pakshatithi4mdegree(finaldeg)
+
+        html_text = f"""
+        <p><font color="blue" size="20"><b><U>SANTANA TITHI</U></b></font></p>
+        <p><b>Jatakdesamarga</b> gives concept of <b>Santana tithi</b> for assessing the possibility of child birth 
+        and the problems which can be faced by a person in this regard. A step by step method of calculation is given to work out Santana tithi for a horoscope:</p>
+        <ol>
+        <li><font color="purple" size="16">Subtract the longitude of Sun from that of Moon.</font> 
+        In D1 chart the Sun position is {sun_pos} and moon position is {moon_pos}. The difference between their longitudes is {sun2moon} degrees.</li>
+        <li><font color="purple" size="16">Multiply the difference by 5</font> The answer is {deg} degrees.</li>
+        <li><font color="purple" size="16">Expunge multiples of 360 from the product till the remainder is 360 or less than 360.</font> The answer is {finaldeg} degrees.</li>
+        <li><font color="purple" size="16">Find out the paksha and tithi from this remainder.</font> When computed the paksha is <b>{paksha} paksha</b> and <b>{tithi}{nth(tithi)} tithi</b>.</li>
+        </ol>
+        <p><b>Rules for Examination of Santana Tithi:</b></p>
+        <ol>
+            <li>When the paksha is Shukla paksha (SP), there will be progeny.</li>
+            <li>If the paksha is Krishna paksha (KP), there will be difficulty in getting progeny.</li>
+            <li>For tithi prior to the sixth in SP, there will be progeny but slowly and gradually.</li>
+            <li>For tithi after the tenth of SP, it will be quick.</li>
+            <li>If tithi is prior to the sixth in KP, there will be progeny after worshiping GOD Subramanian.</li>
+            <li>For four tithi from the seventh in KP, he may have progeny after the second marriage and by feeding Brahmins.</li>
+            <li>For the eleventh and twelfth tithi of KP, there may be conception, but no issue is possible.</li>
+            <li>For the thirteenth and fourteenth tithi of KP, he should adopt a child.</li>
+            <li>If it is amavasya, even adoption is not possible.</li>
+            <li>The Rikta tithi of both paksha are not conducive to any auspicious results.</li>
+        </ol>
+        """
+
+        self.set_font('Times', '', 13)
+        self.set_text_color(10,10,10)
+        self.write_html(html_text)
+        self.ln()
+        self.line(5, self.get_y(), self.w-5, self.get_y())
+        self.ln()
+        return
+
 
 
 
@@ -610,9 +1070,17 @@ pdf.add_firstPage()
 pdf.add_page()
 pdf.add_astrocharts(astrodata)
 
-#Adding section 
+#Adding section related to D1 chart 
 pdf.add_page()
 pdf.add_analysis_D1chart(astrodata)
+
+#Adding section related to Beeja Sphuta or Kshetra Sphuta
+pdf.add_page()
+pdf.add_analysis_Sphuta(astrodata)
+
+#Add section related to santana tithi
+#pdf.add_page()
+pdf.add_santanatithi(astrodata)
 
 # Save PDF to a file
 pdf_output_path = f'./report/sapthamsa_report_{bd["name"]}.pdf'
